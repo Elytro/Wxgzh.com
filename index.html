@@ -1,23 +1,421 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>wxgzh.com</title>
-    <style>
-        body { font-family: -apple-system, "Segoe UI", sans-serif; display: flex;
-               min-height: 100vh; align-items: center; justify-content: center;
-               margin: 0; background: #f5f5f5; color: #333; }
-        .card { background: #fff; padding: 3rem 4rem; border-radius: 12px;
-                box-shadow: 0 4px 16px rgba(0,0,0,.08); text-align: center; }
-        h1 { margin: 0 0 .5rem; font-size: 1.6rem; }
-        p { margin: 0; color: #888; }
-    </style>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图片上传</title>
+<link href="https://apps.bdimg.com/libs/bootstrap/3.3.4/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://apps.bdimg.com/libs/fontawesome/4.4.0/css/font-awesome.min.css" rel="stylesheet">
+<style>
+  html,body{height:100%;}
+  body{
+    background:#fff;
+    color:#111;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Helvetica Neue","Microsoft YaHei",sans-serif;
+    font-size:14px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  .wrap{max-width:680px;margin:0 auto;padding:96px 20px 0;}
+
+  /* 头部 */
+  .page-head{margin-bottom:56px;}
+  .brand{display:inline-flex;align-items:center;gap:8px;color:#111;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:28px;font-weight:500;}
+  .brand::before{content:"";display:inline-block;width:18px;height:1px;background:#111;}
+  .page-title{font-size:32px;font-weight:500;letter-spacing:-.5px;margin:0 0 10px;}
+  .page-desc{color:#888;font-size:13px;margin:0;}
+
+  /* 拖拽区 */
+  .dropzone{
+    margin:0;padding:64px 20px;text-align:center;cursor:pointer;
+    border:1px dashed #d6d6d6;border-radius:2px;background:#fff;
+    transition:border-color .2s ease,color .2s ease,background .2s ease;
+  }
+  .dropzone:hover{border-color:#111;color:#111;}
+  .dropzone.dragover{border-color:#111;border-style:solid;background:#fafafa;}
+  .dz-icon{font-size:18px;color:#bdbdbd;line-height:1;}
+  .dz-main{font-size:14px;margin-top:18px;color:#222;}
+  .dz-main b{font-weight:500;color:#111;border-bottom:1px solid #111;padding-bottom:1px;}
+  .dz-sub{color:#aaa;font-size:12px;margin-top:10px;letter-spacing:.5px;}
+
+  /* 主体 */
+  .panel{padding:48px 0 0;}
+  .section-label{display:flex;align-items:baseline;justify-content:space-between;color:#888;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 24px;}
+
+  /* 空状态 */
+  .empty{display:none;text-align:center;color:#bbb;font-size:13px;padding:20px 0;}
+  .empty i{display:block;font-size:18px;margin-bottom:10px;color:#dcdcdc;}
+  .empty.show{display:block;}
+
+  /* 预览 */
+  .preview{margin:0 -6px;}
+  .p-item{padding:0 6px;margin-bottom:14px;animation:fade .2s ease both;}
+  @keyframes fade{from{opacity:0;}to{opacity:1;}}
+  .p-box{position:relative;border-radius:2px;overflow:hidden;background:#f6f6f6;}
+  .p-box:before{content:"";display:block;padding-top:78%;}
+  .p-box img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;}
+  .p-del{position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;
+    background:rgba(255,255,255,.92);color:#666;font-size:11px;line-height:18px;text-align:center;cursor:pointer;
+    transition:color .15s ease,background .15s ease;}
+  .p-del:hover{color:#fff;background:#111;}
+  .p-done{position:absolute;top:6px;left:6px;width:18px;height:18px;border-radius:50%;
+    background:#111;color:#fff;font-size:9px;line-height:18px;text-align:center;display:none;}
+  .p-item.done .p-done{display:block;}
+  .p-item.error .p-box{outline:1px solid #d33;outline-offset:-1px;}
+  .p-mask{position:absolute;left:0;right:0;bottom:0;padding:12px 8px 4px;text-align:center;
+    color:#fff;font-size:11px;background:linear-gradient(transparent,rgba(0,0,0,.5));display:none;}
+  .p-bar{height:2px;background:#eee;margin-top:8px;display:none;overflow:hidden;}
+  .p-bar > i{display:block;height:100%;width:0;background:#111;transition:width .2s ease;}
+  .p-item.error .p-bar > i{background:#d33;}
+  .p-meta{display:flex;justify-content:space-between;font-size:11.5px;color:#999;margin-top:8px;}
+  .p-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px;color:#555;}
+
+  /* 上传中锁定 */
+  body.uploading .p-del,
+  body.uploading .dropzone{pointer-events:none;}
+  body.uploading .dropzone{opacity:.5;}
+
+  /* 操作栏 */
+  .actions{margin-top:32px;padding-top:20px;border-top:1px solid #eee;display:flex;align-items:center;justify-content:space-between;}
+  .total{color:#888;font-size:12px;}
+  .total b{color:#111;font-weight:500;}
+  .btn{border-radius:2px;font-size:12px;letter-spacing:.5px;padding:7px 18px;transition:all .15s ease;cursor:pointer;line-height:1.2;}
+  .btn-default{background:#fff;border:1px solid #ddd;color:#666;}
+  .btn-default:hover{border-color:#111;color:#111;}
+  .btn-primary{background:#111;border:1px solid #111;color:#fff;}
+  .btn-primary:hover{background:#000;border-color:#000;}
+  .btn-primary[disabled],.btn-default[disabled]{opacity:.3;cursor:not-allowed;pointer-events:none;}
+
+  /* 进度 / 提示 */
+  .progress{margin:18px 0 0;height:2px;border-radius:2px;background:#eee;box-shadow:none;display:none;}
+  .progress-bar{border-radius:2px;background:#111;transition:width .2s ease;box-shadow:none;}
+  .alert{margin:14px 0 0;padding:8px 12px;font-size:12px;border-radius:2px;border:none;display:none;color:#666;background:#f5f5f5;}
+  .alert-success{color:#0a6c3a;background:#f1f7f4;}
+  .alert-warning{color:#8a5a00;background:#faf6ec;}
+  .alert-danger{color:#a52a2a;background:#f8eeee;}
+
+  /* 底部 */
+  footer{margin:80px 0 0;padding:24px 0 32px;border-top:1px solid #f0f0f0;text-align:center;color:#aaa;font-size:11.5px;line-height:1.9;}
+  footer a{color:#999;text-decoration:none;transition:color .15s ease;}
+  footer a:hover{color:#111;}
+  footer .gov{display:inline-flex;align-items:center;}
+  footer .gov img{width:11px;height:11px;margin-right:3px;opacity:.55;}
+  footer .sep{color:#ddd;margin:0 10px;}
+  .cr-line{color:#c8c8c8;margin-top:4px;}
+
+  @media (max-width:767px){
+    .wrap{padding:48px 16px 0;}
+    .page-title{font-size:24px;}
+    .dropzone{padding:44px 16px;}
+    .actions{flex-direction:column;align-items:stretch;gap:14px;}
+    .actions .pull-right{text-align:right;}
+  }
+</style>
 </head>
 <body>
-    <div class="card">
-        <h1>wxgzh.com</h1>
-        <p>Site initialized by oject.php</p>
+
+<div class="wrap">
+  <div class="page-head">
+    <div class="brand">UPLOAD</div>
+    <h1 class="page-title">图片上传</h1>
+    <p class="page-desc">拖拽、点击或粘贴上传图片 · 单张不超过 5MB</p>
+  </div>
+
+  <div class="dropzone" id="dropzone">
+    <div class="dz-icon"><i class="fa fa-long-arrow-up"></i></div>
+    <div class="dz-main">拖拽图片到此处，或 <b>点击选择文件</b></div>
+    <div class="dz-sub">JPG · PNG · GIF · WEBP</div>
+    <input type="file" id="fileInput" accept="image/*" multiple hidden>
+  </div>
+
+  <div class="panel">
+    <p class="section-label"><span>已选文件</span><span id="total">—</span></p>
+    <div class="empty show" id="empty"><i class="fa fa-image"></i>暂无图片</div>
+    <div class="row preview" id="preview"></div>
+
+    <div class="actions">
+      <div class="total" id="totalText">未选择文件</div>
+      <div class="pull-right">
+        <button type="button" class="btn btn-default" id="btnClear">清空</button>
+        <button type="button" class="btn btn-primary" id="btnUpload" disabled>开始上传</button>
+      </div>
     </div>
+
+    <div class="progress" id="progress">
+      <div class="progress-bar" id="progressBar" style="width:0%"></div>
+    </div>
+    <div class="alert" id="alert"></div>
+  </div>
+
+  <footer>
+    <div>
+      <a href="https://beian.miit.gov.cn/" target="_blank" rel="nofollow">鲁ICP备2025144109号-22</a>
+      <span class="sep">·</span>
+      <a class="gov" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=37130202373077" target="_blank" rel="nofollow">
+        <img src="https://www.beian.gov.cn/img/ghs.png" alt="">鲁公网安备37130202373077号
+      </a>
+    </div>
+    <div class="cr-line">© <span id="year"></span> Upload</div>
+  </footer>
+</div>
+
+<script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+<script src="https://apps.bdimg.com/libs/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+<script>
+(function ($) {
+  'use strict';
+
+  /* ============ 配置 ============ */
+  var CONFIG = {
+    url: '',
+    field: 'file',
+    maxSize: 5 * 1024 * 1024,
+    concurrency: 2
+  };
+
+  /* ============ DOM ============ */
+  var el = {
+    body: $(document.body),
+    dz: $('#dropzone'), input: $('#fileInput'), preview: $('#preview'), empty: $('#empty'),
+    total: $('#total'), totalText: $('#totalText'),
+    bar: $('#progress'), barFill: $('#progressBar'),
+    alert: $('#alert'), btnUpload: $('#btnUpload'), btnClear: $('#btnClear')
+  };
+
+  /* ============ 队列 ============ */
+  var items = [];
+  var busy = false;
+
+  function createItem(file) {
+    return { id: uid(), file: file, url: URL.createObjectURL(file), status: 'ready', refs: {} };
+  }
+  function destroy(item) { if (item) URL.revokeObjectURL(item.url); }
+
+  function addFiles(list) {
+    if (busy) { View.tip('warning', '正在上传中，请稍候'); return; }
+    var rejected = [];
+    $.each(list, function (_, file) {
+      var reason = check(file);
+      if (reason) { rejected.push(file.name + '（' + reason + '）'); return; }
+      items.push(createItem(file));
+    });
+    if (rejected.length) View.tip('danger', '已忽略：' + rejected.join('、'));
+    View.render();
+  }
+
+  function removeFile(id) {
+    if (busy) return;
+    items = $.grep(items, function (it) {
+      if (it.id !== id) return true;
+      destroy(it);
+      return false;
+    });
+    View.render();
+  }
+
+  function clearFiles() {
+    if (busy) return;
+    $.each(items, function (_, it) { destroy(it); });
+    items = [];
+    el.bar.hide(); View.overall(0, 1); el.alert.hide();
+    View.render();
+  }
+
+  function check(file) {
+    if (!/^image\//.test(file.type)) return '不是图片';
+    if (file.size > CONFIG.maxSize) return '超过 ' + fmt(CONFIG.maxSize);
+    return '';
+  }
+
+  /* ============ 视图 ============ */
+  var View = {
+    render: function () {
+      el.preview.html($.map(items, tpl).join(''));
+      $.each(items, function (_, it) {
+        var $box = el.preview.find('[data-id="' + it.id + '"]');
+        it.refs = { $el: $box, $bar: $box.find('.p-bar'), $fill: $box.find('.p-bar > i'), $mask: $box.find('.p-mask') };
+      });
+      var count = items.length;
+      el.empty.toggle(!count);
+      el.total.text(count ? count + ' 张' : '—');
+      el.totalText.html(count ? '共 <b>' + count + '</b> 张 · ' + fmt(sizeOf(items)) : '未选择文件');
+      el.btnUpload.prop('disabled', busy || !count);
+    },
+
+    progress: function (item, pct) {
+      item.refs.$bar.show();
+      item.refs.$fill.css('width', pct + '%');
+      item.refs.$mask.show().text('上传中 ' + pct + '%');
+    },
+
+    settle: function (item, okFlag) {
+      item.status = okFlag ? 'done' : 'error';
+      item.refs.$mask.hide();
+      item.refs.$fill.css('width', '100%');
+      item.refs.$el.toggleClass('done', okFlag).toggleClass('error', !okFlag);
+    },
+
+    overall: function (done, total) {
+      var pct = total ? Math.round(done / total * 100) : 0;
+      el.barFill.css('width', pct + '%').attr('aria-valuenow', pct);
+    },
+
+    tip: function (type, msg) {
+      el.alert.removeClass('alert-success alert-warning alert-danger')
+              .addClass('alert-' + type).html(msg).fadeIn(120);
+    }
+  };
+
+  function tpl(it) {
+    var name = esc(it.file.name);
+    return '<div class="col-xs-6 col-sm-4 col-md-3 p-item" data-id="' + it.id + '">' +
+             '<div class="p-box">' +
+               '<img src="' + it.url + '" alt="">' +
+               '<span class="p-done" title="已上传"><i class="fa fa-check"></i></span>' +
+               '<span class="p-del" title="移除">&times;</span>' +
+               '<div class="p-mask"></div>' +
+             '</div>' +
+             '<div class="p-bar"><i></i></div>' +
+             '<div class="p-meta">' +
+               '<span class="p-name" title="' + name + '">' + name + '</span>' +
+               '<span class="p-size">' + fmt(it.file.size) + '</span>' +
+             '</div>' +
+           '</div>';
+  }
+
+  /* ============ 上传 ============ */
+  function uploadOne(item) {
+    var dfd = $.Deferred();
+    View.progress(item, 0);
+    function done(okFlag) { View.settle(item, okFlag); okFlag ? dfd.resolve(item) : dfd.reject(item); }
+    if (CONFIG.url) request(item).done(function () { done(true); }).fail(function () { done(false); });
+    else            mockUpload(item, function () { done(true); });
+    return dfd.promise();
+  }
+
+  function request(item) {
+    var fd = new FormData();
+    fd.append(CONFIG.field, item.file, item.file.name);
+    return $.ajax({
+      url: CONFIG.url,
+      type: 'POST',
+      data: fd,
+      processData: false,
+      contentType: false,
+      xhr: function () {
+        var xhr = $.ajaxSettings.xhr();
+        if (xhr.upload) xhr.upload.addEventListener('progress', function (e) {
+          if (e.lengthComputable) View.progress(item, Math.round(e.loaded / e.total * 100));
+        });
+        return xhr;
+      }
+    });
+  }
+
+  function mockUpload(item, done) {
+    var pct = 0;
+    var timer = setInterval(function () {
+      pct += Math.random() * 24;
+      if (pct >= 100) { clearInterval(timer); done(); }
+      else View.progress(item, Math.round(pct));
+    }, 160);
+  }
+
+  function uploadAll() {
+    if (busy || !items.length) return;
+    busy = true;
+    el.body.addClass('uploading');
+    el.alert.hide();
+    el.bar.show();
+    el.btnUpload.prop('disabled', true).text('上传中…');
+    el.btnClear.prop('disabled', true);
+
+    var queue = $.grep(items, function (it) { return it.status !== 'done'; });
+    var cursor = 0, running = 0, succeeded = 0, failed = [], finished = 0;
+    View.overall(0, queue.length);
+
+    function pump() {
+      while (running < CONFIG.concurrency && cursor < queue.length) {
+        running++;
+        (function (item) {
+          uploadOne(item)
+            .done(function () { succeeded++; })
+            .fail(function (it) { failed.push(it.file.name); })
+            .always(function () {
+              running--;
+              View.overall(++finished, queue.length);
+              pump();
+            });
+        })(queue[cursor++]);
+      }
+      if (!running) summary();
+    }
+
+    function summary() {
+      busy = false;
+      el.body.removeClass('uploading');
+      el.btnUpload.text('开始上传').prop('disabled', !items.length);
+      el.btnClear.prop('disabled', false);
+      if (!succeeded && !failed.length) View.tip('warning', '没有待上传的图片');
+      else if (!failed.length) View.tip('success', '全部上传成功（' + succeeded + ' 张）');
+      else View.tip(succeeded ? 'warning' : 'danger',
+        '成功 ' + succeeded + ' 张，失败 ' + failed.length + ' 张：' + failed.join('、'));
+    }
+
+    pump();
+  }
+
+  /* ============ 事件 ============ */
+  $('#year').text(new Date().getFullYear());
+
+  el.dz.on('click', function () { el.input.trigger('click'); });
+  el.input.on('change', function () { addFiles(this.files); this.value = ''; });
+
+  el.preview.on('click', '.p-del', function () {
+    removeFile($(this).closest('.p-item').data('id'));
+  });
+  el.btnClear.on('click', clearFiles);
+  el.btnUpload.on('click', uploadAll);
+
+  $(document).on('dragover drop', function (e) { e.preventDefault(); });
+  el.dz.on('dragenter dragover', function (e) {
+    e.preventDefault();
+    el.dz.addClass('dragover');
+  });
+  el.dz.on('dragleave', function (e) {
+    e.preventDefault();
+    if (!el.dz[0].contains(e.originalEvent.relatedTarget)) el.dz.removeClass('dragover');
+  });
+  el.dz.on('drop', function (e) {
+    e.preventDefault();
+    el.dz.removeClass('dragover');
+    var dt = e.originalEvent.dataTransfer;
+    if (dt && dt.files.length) addFiles(dt.files);
+  });
+  $(document).on('paste', function (e) {
+    var cb = e.originalEvent.clipboardData;
+    if (!cb || !cb.items) return;
+    var list = [];
+    for (var i = 0; i < cb.items.length; i++) {
+      if (cb.items[i].type.indexOf('image') === 0) list.push(cb.items[i].getAsFile());
+    }
+    if (list.length) addFiles(list);
+  });
+
+  /* ============ 工具 ============ */
+  function uid() { return 'f' + Date.now() + Math.random().toString(36).slice(2, 7); }
+  function sizeOf(list) { var s = 0; $.each(list, function (_, it) { s += it.file.size; }); return s; }
+  function fmt(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(2) + ' MB';
+  }
+  function esc(s) { return $('<div>').text(s).html().replace(/"/g, '&quot;'); }
+
+  View.render();
+})(jQuery);
+</script>
 </body>
 </html>
